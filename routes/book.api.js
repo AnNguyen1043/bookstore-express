@@ -4,15 +4,9 @@ const router = express.Router();
 
 const fs = require("fs");
 
-/**
- * params: /
- * description: get all books
- * query:
- * method: get
- */
-
-router.get("/", (req, res, next) => {
+const getAllBooksController = (req, res, next) => {
   //input validation
+
   const allowedFilter = [
     "author",
     "country",
@@ -21,10 +15,10 @@ router.get("/", (req, res, next) => {
     "page",
     "limit",
   ];
+
   try {
-    let { page, limit, ...filterQuery } = req.query;
-    page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
+    let { page = 1, limit = 10, ...filterQuery } = req.query;
+
     //allow title,limit and page query string only
     const filterKeys = Object.keys(filterQuery);
     filterKeys.forEach((key) => {
@@ -33,39 +27,57 @@ router.get("/", (req, res, next) => {
         exception.statusCode = 401;
         throw exception;
       }
+
       if (!filterQuery[key]) delete filterQuery[key];
     });
+
     //processing logic
+    const author = filterQuery.author;
+    const country = filterQuery.country;
+    const language = filterQuery.language;
+    const title = filterQuery.title;
+
+    //Read data from db.json then parse to JSobject
+    const db = fs.readFileSync("db.json", "utf-8");
+    const parseDB = JSON.parse(db);
+
+    const { books } = parseDB;
+    //Filter data by title
+    const filteredBooks = [];
+
+    books.forEach((book) => {
+      if (author && book.author !== author) return;
+      if (country && book.country !== country) return;
+      if (language && book.language !== language) return;
+      if (title && book.title !== title) return;
+
+      filteredBooks.push(book);
+    });
+
+
+    //then select number of result by offset
+    page = parseInt(page);
+    limit = parseInt(limit);
+    //Number of items skip for selection
+    let offset = limit * (page - 1);
+    const result = filteredBooks.slice(offset, offset + limit)
+
     //send response
+    res.status(200).send(result);
+
   } catch (error) {
     next(error);
   }
+}
 
-  //processing logic
-  //Number of items skip for selection
-  let offset = limit * (page - 1);
-
-  //Read data from db.json then parse to JSobject
-  let db = fs.readFileSync("db.json", "utf-8");
-  db = JSON.parse(db);
-  const { books } = db;
-  //Filter data by title
-  let result = [];
-
-  if (filterKeys.length) {
-    filterKeys.forEach((condition) => {
-      result = result.length
-        ? result.filter((book) => book[condition] === filterQuery[condition])
-        : books.filter((book) => book[condition] === filterQuery[condition]);
-    });
-  } else {
-    result = books;
-  }
-  //then select number of result by offset
-  result = result.slice(offset, offset + limit);
-
-  //send response
-  res.status(200).send(result);
+/**
+ * params: /
+ * description: get all books
+ * query:
+ * method: get
+ */
+router.get("/", getAllBooksController, (req, res, next) => {
+  res.status(200).send("Welcome to book api");
 });
 
 /**
@@ -74,7 +86,6 @@ router.get("/", (req, res, next) => {
  * query:
  * method: post
  */
-
 router.post("/", (req, res, next) => {
   //post input validation
   try {
@@ -134,7 +145,6 @@ router.post("/", (req, res, next) => {
  * query:
  * method: put
  */
-
 router.put("/:bookId", (req, res, next) => {
   //put input validation
   try {
@@ -198,7 +208,6 @@ router.put("/:bookId", (req, res, next) => {
  * query:
  * method: delete
  */
-
 router.delete("/:bookId", (req, res, next) => {
   //delete input validation
   try {
