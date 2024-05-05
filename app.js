@@ -21,7 +21,7 @@ app.use(cors());
 app.use("/", indexRouter);
 // app.use("/users", usersRouter);
 
-//catch when when request match no route
+//catch when request match no route
 app.use((req, res, next) => {
   const exception = new Error(`Path not found`);
   exception.statusCode = 404;
